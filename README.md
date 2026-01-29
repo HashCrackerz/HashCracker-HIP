@@ -42,7 +42,7 @@ Tutte le versioni HIP[versione_progetto] (eseguite dai rispettivi file kernel) h
 `UTILS` e `SHA256_HIP`, ad eccezione della v2 che usa `SHA256_HIP_OPT` (versione ottimizzata) invece di `SHA256_HIP`.
 Nota che l'implementazione HIP é sostanzialmente analoga a quella CUDA riportata nella repository [HashCracker-CUDA](https://github.com/HashCrackerz/HashCracker-CUDA).
 
-Llo script di porting si occupa di tradurre opportunamente le funzioni, i tipi e importare o rimuovere le librerie, oltre che
+Lo script di porting si occupa di tradurre opportunamente le funzioni, i tipi e importare o rimuovere le librerie, oltre che
 convertire ad esempio gli import con i doppo apici in parentesi angolari. I file vengono sovrascritti e rinominati, ma la
 struttura progettuale resta la medesima. I file di questa repository sono i risultato proprio di questa conversione e di un
 porting manuale rifinito (aggiunta di extern C ai kernel, correzione spaziatura invocazione thread e poco altro). 
