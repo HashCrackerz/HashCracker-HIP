@@ -117,7 +117,8 @@ int main(int argc, char** argv)
     CHECK(hipMalloc((void**)&d_result, MAX_CANDIDATE * sizeof(char)));
     CHECK(hipMemset(d_result, 0, max_test_len * sizeof(char)));
 
-    double iStart = NULL, iElaps;
+    double iStart, iElaps;
+    iStart = cpuSecond();
 
     if (dizionario)
     {
@@ -144,7 +145,7 @@ int main(int argc, char** argv)
 
             unsigned long long totalSalts = pow((double)charSetLen, (double)strlen(salt));
             int numBlocks = (numWords + blockSize - 1) / blockSize;
-            iStart = (iStart == NULL ? cpuSecond() : iStart);
+
             printf("Lancio Kernel Dizionario su %d parole (%.2f MB)...\n", numWords, dictSizeBytes / (1024.0 * 1024.0));
 
             bruteForceKernel_dizionario <<<numBlocks, blockSize>>> (
@@ -159,14 +160,8 @@ int main(int argc, char** argv)
 
             if (h_found) {
                 CHECK(hipMemcpy(h_result, d_result, MAX_CANDIDATE * sizeof(char), hipMemcpyDeviceToHost));
-                printf("\nParola candidata trovata dalla GPU: %s\n", h_result);
-
-                if (testLogin(h_result, strlen(h_result), target_hash, salt)) {
-                    printf("\n************************************************\n");
-                    printf("*** PASSWORD TROVATA E VERIFICATA: %s ***\n", h_result);
-                    printf("************************************************\n");
-                    password_found = true;
-                }
+                printf("\n*** PASSWORD TROVATA (Dizionario): %s ***\n", h_result);
+                password_found = true;
             }
             else {
                 printf("Non trovata nel dizionario.\n");
@@ -197,7 +192,6 @@ int main(int argc, char** argv)
             printf("Controllo kernel naive con lunghezza %d (Combinazioni tot: %llu)...\n", len, totalCombinations);
 
             int numBlocks = (totalCombinations + blockSize - 1) / blockSize;
-            iStart = (iStart == NULL ? cpuSecond() : iStart);
 
             bruteForceKernel_salt <<<numBlocks, blockSize>>> (
                 len,
@@ -212,31 +206,61 @@ int main(int argc, char** argv)
             // Check immediato per uscire dal ciclo for
             bool h_found_local = false;
             CHECK(hipMemcpy(&h_found_local, d_found, sizeof(bool), hipMemcpyDeviceToHost));
-            if (h_found_local) 
-            {
-                password_found = true;
-
-                CHECK(hipMemcpy(h_result, d_result, MAX_CANDIDATE * sizeof(char), hipMemcpyDeviceToHost));
-                printf("\n************************************************\n");
-                printf("*** PASSWORD TROVATA (Brute Force): %s ***\n", h_result);
-                printf("************************************************\n");
-                break;
-            }
+            if (h_found_local) password_found = true;
         }
     }
-    
-    CHECK(hipDeviceSynchronize()); // Attendo terminazione kernel 
 
-    if (!password_found) {
-        printf("\nNessuna password trovata nel range specificato.\n");
-    }
+    CHECK(hipDeviceSynchronize()); // Attendo terminazione kernel 
 
     // Recupero risultati finali
     // (Se password_found � true, h_result � gi� stato popolato se trovato col dizionario, 
     // ma se trovato col salt devo copiarlo ora o l'avrei dovuto copiare nel loop. 
     // Per sicurezza faccio una copia finale se d_found � true)
 
-    iElaps = cpuSecond() - (iStart != NULL ? iStart : 0);
+    bool final_found = false;
+    CHECK(hipMemcpy(&final_found, d_found, sizeof(bool), hipMemcpyDeviceToHost));
+
+    if (final_found)
+    {
+        CHECK(hipMemcpy(h_result, d_result, sizeof(char) * MAX_CANDIDATE, hipMemcpyDeviceToHost));
+        printf("\nStringa Totale (Pass+Salt) trovata: %s\n", h_result);
+
+        char* final_decrypted_pass = NULL;
+        int totalLen = strlen(h_result);
+        int mySaltLen = strlen(salt);
+        int realPassLen = totalLen - mySaltLen;
+
+        if (realPassLen > 0)
+        {
+            // Controllo se il salt � all'INIZIO
+            if (strncmp(h_result, salt, mySaltLen) == 0)
+            {
+                final_decrypted_pass = (char*)malloc(sizeof(char) * (realPassLen + 1));
+                strcpy(final_decrypted_pass, h_result + mySaltLen);
+                printf("Schema rilevato: [SALT] + [PASSWORD]\n");
+            }
+            // Controllo se il salt � alla FINE
+            else if (strncmp(h_result + realPassLen, salt, mySaltLen) == 0)
+            {
+                final_decrypted_pass = (char*)malloc(sizeof(char) * (realPassLen + 1));
+                strncpy(final_decrypted_pass, h_result, realPassLen);
+                final_decrypted_pass[realPassLen] = '\0'; // Terminatore manuale
+                printf("Schema rilevato: [PASSWORD] + [SALT]\n");
+            }
+        }
+
+        if (final_decrypted_pass != NULL) {
+            printf("\n*** PASSWORD TROVATA: %s ***\n", final_decrypted_pass);
+            free(final_decrypted_pass);
+        }
+        else {
+            printf("Errore: Hash trovato, ma il salt non corrisponde alla posizione prevista.\n");
+        }
+    }
+    else {
+        printf("Nessuna password trovata nel range specificato.\n");
+    }
+    iElaps = cpuSecond() - iStart;
     printf("Tempo GPU: %.4f secondi\n", iElaps);
 
     // Cleanup
@@ -244,6 +268,5 @@ int main(int argc, char** argv)
     CHECK(hipFree(d_result));
 
     free(charSet);
-    free(salted_password);
     return 0;
 }

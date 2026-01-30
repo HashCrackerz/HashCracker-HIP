@@ -197,7 +197,6 @@ int main(int argc, char** argv)
             printf("Controllo kernel naive con lunghezza %d (Combinazioni tot: %llu)...\n", len, totalCombinations);
 
             int numBlocks = (totalCombinations + blockSize - 1) / blockSize;
-            iStart = (iStart == NULL ? cpuSecond() : iStart);
 
             bruteForceKernel_salt <<<numBlocks, blockSize>>> (
                 len,
@@ -236,7 +235,7 @@ int main(int argc, char** argv)
     // ma se trovato col salt devo copiarlo ora o l'avrei dovuto copiare nel loop. 
     // Per sicurezza faccio una copia finale se d_found � true)
 
-    iElaps = cpuSecond() - (iStart != NULL ? iStart : 0);
+    iElaps = cpuSecond() - iStart;
     printf("Tempo GPU: %.4f secondi\n", iElaps);
 
     // Cleanup

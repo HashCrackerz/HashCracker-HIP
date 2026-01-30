@@ -236,7 +236,7 @@ int main(int argc, char** argv)
     // ma se trovato col salt devo copiarlo ora o l'avrei dovuto copiare nel loop. 
     // Per sicurezza faccio una copia finale se d_found � true)
 
-    iElaps = cpuSecond() - (iStart != NULL ? iStart : 0);
+    iElaps = cpuSecond() - iStart;
     printf("Tempo GPU: %.4f secondi\n", iElaps);
 
     // Cleanup

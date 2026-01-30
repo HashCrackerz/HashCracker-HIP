@@ -57,32 +57,26 @@ int main(int argc, char** argv)
     printf("Hash Target: ");
     for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) printf("%02x", target_hash[i]);
     printf("\n\n");
-
+    
     /*-----------------------------------------------------------------------------------------------------------------------------------------*/
     /* TEST VERSIONE SEQUENZIALE */
     /*-----------------------------------------------------------------------------------------------------------------------------------------*/
     char* result = NULL;
 
-    double iStart, iElaps;
-    iStart = cpuSecond();
-
-    if (dizionario)
+    if (dizionario) 
     {
         printf("\nAvvio attacco a dizionario\n");
         result = testSequenziale_dizionario(target_hash, strlen(salt), charSet, salt);
     }
 
-    if (result == NULL || !dizionario)
+    if (result == NULL || !dizionario) 
     {
         printf("\nAttacco a dizionario non disponibile \n");
         result = testSequenziale_salt(target_hash, min_test_len, max_test_len, charSet, salt);
     }
+    
 
     printf("Passoword trovata: %s\n", result);
-
-    // end time 
-    iElaps = cpuSecond() - iStart;
-    printf("Tempo CPU: %.4f secondi\n", iElaps);
 
     free(charSet);
     free(result);
